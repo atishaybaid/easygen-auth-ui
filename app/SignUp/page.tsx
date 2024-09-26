@@ -2,9 +2,10 @@
 
 import { useState, ChangeEvent } from "react";
 import { postData } from "../apiServices";
+import { apiEndpoints } from "../apiServices/apiEndPoints";
 import { validateEmail } from "../Utils";
 import { useRouter } from "next/navigation";
-import { apiEndpoints } from "../apiServices/apiEndPoints";
+
 interface SignInData {
   [key: string]: string;
 }
@@ -17,12 +18,19 @@ interface configType {
   validationMessage?: string;
   payloadKey: string;
 }
-export default function Login() {
+export default function SignUp() {
   const router = useRouter();
   const [formConfig, setFormConfig] = useState<SignInData>({});
   const [rootFaliure, setRootFaliure] = useState("");
 
   const signUpConfig: Array<configType> = [
+    {
+      label: "Name",
+      type: "text",
+      placeHolder: "Enter Name",
+      isRequred: false,
+      payloadKey: "user_name",
+    },
     {
       label: "Email",
       type: "text",
@@ -48,6 +56,14 @@ export default function Login() {
     temp[payloadKey as keyof typeof formConfig] = event.target.value;
 
     setFormConfig({ ...temp });
+  };
+
+  const onBlurFormField = (
+    payloadKey: string,
+    event: ChangeEvent<HTMLInputElement>
+  ) => {
+    if (payloadKey == "user_email") {
+    }
   };
 
   const renderSignInComponents = () => {
@@ -80,7 +96,11 @@ export default function Login() {
       setRootFaliure("Enter Valid Email");
       return false;
     }
-    if (!user_email || !user_pass) {
+    if (!user_name) {
+      setRootFaliure("Please Enter Valid Name");
+      return false;
+    }
+    if (!user_name || !user_email || !user_pass) {
       setRootFaliure("Mandatory Fields Missing");
       return false;
     } else {
@@ -88,8 +108,8 @@ export default function Login() {
     }
   };
 
-  const onClickLogin = async () => {
-    const { user_email, user_pass } = formConfig;
+  const onClickSignUp = async () => {
+    const { user_name, user_email, user_pass } = formConfig;
     console.log(process.env.NEXT_PUBLIC_API_BASE);
 
     if (!validatePayloadData()) {
@@ -98,10 +118,11 @@ export default function Login() {
 
     const res = await postData(
       {
+        user_name: user_name,
         user_email: user_email,
         user_pass: user_pass,
       },
-      apiEndpoints["LOGIN"]
+      apiEndpoints["SIGN_UP"]
     );
 
     if (res && res.success) {
@@ -119,10 +140,10 @@ export default function Login() {
   const renderSiginBtn = () => {
     return (
       <button
-        onClick={onClickLogin}
+        onClick={onClickSignUp}
         className="border-1 border-black bg-indigo-500 w-48 text-white mt-2"
       >
-        Login
+        Sign Up
       </button>
     );
   };
