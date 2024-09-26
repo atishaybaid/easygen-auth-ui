@@ -1,7 +1,9 @@
 "use client";
 
-import Image from "next/image";
 import { useState, ChangeEvent } from "react";
+import { postData } from "../apiServices";
+import { validateEmail } from "../Utils";
+import { useRouter } from "next/navigation";
 
 interface SignInData {
   [key: string]: string;
@@ -16,7 +18,9 @@ interface configType {
   payloadKey: string;
 }
 export default function Login() {
+  const router = useRouter();
   const [formConfig, setFormConfig] = useState<SignInData>({});
+  const [rootFaliure, setRootFaliure] = useState("");
 
   const signUpConfig: Array<configType> = [
     {
@@ -53,37 +57,103 @@ export default function Login() {
     setFormConfig({ ...temp });
   };
 
+  const onBlurFormField = (
+    payloadKey: string,
+    event: ChangeEvent<HTMLInputElement>
+  ) => {
+    if (payloadKey == "user_email") {
+    }
+  };
+
   const renderSignInComponents = () => {
     return signUpConfig.map((item) => {
-      const { type, placeHolder, payloadKey } = item;
+      const { type, placeHolder, payloadKey, label } = item;
 
       return (
-        <div className="">
+        <div className="pt-4">
+          {/* <div className="p-2">{label}</div> */}
           <input
             type={type}
             onChange={(event) => {
               onChangeFormField(payloadKey, event);
             }}
             placeholder={placeHolder}
+            className="border-1 border-black"
           />
         </div>
       );
     });
   };
 
-  const onClickLogin = () => {
-    console.log("formConfig");
-    console.log(formConfig);
+  const renderAPIMessage = () => {
+    return <div className="text-red-400 mt-8">{rootFaliure}</div>;
+  };
+
+  const validatePayloadData = () => {
+    const { user_name, user_email, user_pass } = formConfig;
+    if (!validateEmail(user_email)) {
+      setRootFaliure("Enter Valid Email");
+      return false;
+    }
+    if (!user_name) {
+      setRootFaliure("Please Enter Valid Name");
+      return false;
+    }
+    if (!user_name || !user_email || !user_pass) {
+      setRootFaliure("Mandatory Fields Missing");
+      return false;
+    } else {
+      return true;
+    }
+  };
+
+  const onClickSignUp = async () => {
+    const { user_name, user_email, user_pass } = formConfig;
+    console.log(process.env.NEXT_PUBLIC_API_BASE);
+
+    if (!validatePayloadData()) {
+      return;
+    }
+
+    const res = await postData(
+      {
+        user_name: user_name,
+        user_email: user_email,
+        user_pass: user_pass,
+      },
+      `auth/signup`
+    );
+
+    if (res && res.success) {
+      setRootFaliure("");
+      router.push("/home");
+    } else {
+      setRootFaliure(
+        res.message
+          ? res.message
+          : "Something went wrong,please try again later !"
+      );
+    }
   };
 
   const renderSiginBtn = () => {
-    return <button onClick={onClickLogin}>Login</button>;
+    return (
+      <button
+        onClick={onClickSignUp}
+        className="border-1 border-black bg-indigo-500 w-48 text-white mt-2"
+      >
+        Sign Up
+      </button>
+    );
   };
 
   return (
-    <div className="">
-      {renderSignInComponents()}
-      {renderSiginBtn()}
+    <div className="flex justify-center items-center h-dvh">
+      <div className="w-1/2 rounded-md border-2 border-black flex justify-center items-center flex-col h-80">
+        {renderSignInComponents()}
+        {renderAPIMessage()}
+        {renderSiginBtn()}
+      </div>
     </div>
   );
 }
