@@ -2,7 +2,7 @@
 
 import { useState, ChangeEvent } from "react";
 import { postData } from "../apiServices";
-import { validateEmail } from "../Utils";
+import { validateEmail, validatePassword } from "../Utils";
 import { useRouter } from "next/navigation";
 import { apiEndpoints } from "../apiServices/apiEndPoints";
 interface SignInData {

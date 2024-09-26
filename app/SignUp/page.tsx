@@ -3,7 +3,7 @@
 import { useState, ChangeEvent } from "react";
 import { postData } from "../apiServices";
 import { apiEndpoints } from "../apiServices/apiEndPoints";
-import { validateEmail } from "../Utils";
+import { validateEmail, validatePassword } from "../Utils";
 import { useRouter } from "next/navigation";
 
 interface SignInData {
@@ -103,6 +103,10 @@ export default function SignUp() {
     if (!user_name || !user_email || !user_pass) {
       setRootFaliure("Mandatory Fields Missing");
       return false;
+    } else if (!validatePassword(user_pass)) {
+      setRootFaliure(
+        "Password must containe  one letter,one number and one special character."
+      );
     } else {
       return true;
     }
