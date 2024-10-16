@@ -3,7 +3,12 @@
 import { useState, ChangeEvent } from "react";
 import { postData } from "../apiServices";
 import { apiEndpoints } from "../apiServices/apiEndPoints";
-import { validateEmail, validatePassword } from "../Utils";
+import {
+  validateEmail,
+  validatePassword,
+  debouncedIsValidInput,
+  findIndexById,
+} from "../Utils";
 import { useRouter } from "next/navigation";
 
 interface SignInData {
@@ -17,45 +22,98 @@ interface configType {
   isRequred: boolean;
   validationMessage?: string;
   payloadKey: string;
+  emptyValidation?: string;
+  validationRegex?: RegExp;
+  invalidInput?: string;
+  hasError?: boolean;
 }
+
+const signUpBEData: Array<configType> = [
+  {
+    label: "Name",
+    type: "text",
+    placeHolder: "Enter Name",
+    isRequred: true,
+    payloadKey: "user_name",
+    emptyValidation: "Please Enter Your Name",
+    hasError: false,
+  },
+  {
+    label: "Email",
+    type: "text",
+    placeHolder: "Enter Email",
+    isRequred: true,
+    validationMessage: "Please enter valid email",
+    invalidInput: "Please enter valid email",
+    payloadKey: "user_email",
+    validationRegex: /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/,
+    hasError: false,
+  },
+  {
+    label: "Password",
+    type: "password",
+    placeHolder: "Password",
+    payloadKey: "user_pass",
+    isRequred: true,
+    validationMessage: "Please enter valid email",
+    validationRegex: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\W).{8,}$/,
+    invalidInput:
+      "Must be 8+ chars, with 1 uppercase, 1 lowercase, and 1 special character.",
+    hasError: false,
+  },
+];
+
 export default function SignUp() {
   const router = useRouter();
   const [formConfig, setFormConfig] = useState<SignInData>({});
   const [rootFaliure, setRootFaliure] = useState("");
+  const [signUpConfig, setSignupConfig] = useState(signUpBEData);
 
-  const signUpConfig: Array<configType> = [
-    {
-      label: "Name",
-      type: "text",
-      placeHolder: "Enter Name",
-      isRequred: false,
-      payloadKey: "user_name",
-    },
-    {
-      label: "Email",
-      type: "text",
-      placeHolder: "Enter Email",
-      isRequred: true,
-      validationMessage: "Please enter valid email",
-      payloadKey: "user_email",
-    },
-    {
-      label: "Password",
-      type: "password",
-      placeHolder: "Password",
-      isRequred: false,
-      payloadKey: "user_pass",
-    },
-  ];
+  /*
+use case for validation
+ - when user is typing,if he has typed invalid,and has pasued for sometime show error message
+ - approach
+   dont set the state,while user is typing
+   just validate it with debounce
+
+   just get the data at the time of submit
+
+
+  */
+
+  const getCurrentItemFromConfig = (payloadKey) => {
+    const configItem = signUpConfig.filter((configItem) => {
+      return configItem.payloadKey == payloadKey;
+    });
+
+    return configItem[0];
+  };
 
   const onChangeFormField = (
     payloadKey: string,
     event: ChangeEvent<HTMLInputElement>
   ) => {
-    const temp = formConfig;
-    temp[payloadKey as keyof typeof formConfig] = event.target.value;
+    // const temp = formConfig;
+    // temp[payloadKey as keyof typeof formConfig] = event.target.value;
+    const currentConfigItem = getCurrentItemFromConfig(payloadKey);
 
-    setFormConfig({ ...temp });
+    debouncedIsValidInput(
+      event.target.value,
+      currentConfigItem["validationRegex"],
+      (result: boolean) => {
+        console.log("result at containsValidationError");
+        currentConfigItem["hasError"] = !result;
+        console.log(currentConfigItem);
+        const currentIndex = findIndexById(
+          signUpConfig,
+          payloadKey,
+          "payloadKey"
+        );
+        const tempSignupCOnfig = signUpConfig;
+        tempSignupCOnfig[currentIndex] = currentConfigItem;
+        setSignupConfig([...tempSignupCOnfig]);
+      }
+    );
   };
 
   const onBlurFormField = (
@@ -68,7 +126,8 @@ export default function SignUp() {
 
   const renderSignInComponents = () => {
     return signUpConfig.map((item) => {
-      const { type, placeHolder, payloadKey, label } = item;
+      const { type, placeHolder, payloadKey, label, hasError, invalidInput } =
+        item;
 
       return (
         <div className="pt-4">
@@ -81,6 +140,7 @@ export default function SignUp() {
             placeholder={placeHolder}
             className="border-1 border-black"
           />
+          {hasError ? <label className="error">{invalidInput}</label> : false}
         </div>
       );
     });
