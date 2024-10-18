@@ -62,7 +62,7 @@ interface configType {
 }
 export const findIndexById = (
   array: Array<configType> = [],
-  id: string,
+  id: string | boolean,
   key: string
 ) => {
   let output = -1;

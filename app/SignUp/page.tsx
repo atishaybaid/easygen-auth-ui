@@ -130,7 +130,7 @@ use case for validation
         item;
 
       return (
-        <div className="pt-4">
+        <div className="pt-4 flex flex-col">
           {/* <div className="p-2">{label}</div> */}
           <input
             type={type}
@@ -140,7 +140,13 @@ use case for validation
             placeholder={placeHolder}
             className="border-1 border-black"
           />
-          {hasError ? <label className="error">{invalidInput}</label> : false}
+          {hasError ? (
+            <label className="error text-red-400  text-sm">
+              {invalidInput}
+            </label>
+          ) : (
+            false
+          )}
         </div>
       );
     });
@@ -152,6 +158,14 @@ use case for validation
 
   const validatePayloadData = () => {
     const { user_name, user_email, user_pass } = formConfig;
+    // const indexWithError = findIndexById(signUpConfig, true, "hasError");
+
+    // if (indexWithError > 0) {
+    //   return false;
+    // } else {
+    //   return true;
+    // }
+
     if (!validateEmail(user_email)) {
       setRootFaliure("Enter Valid Email");
       return false;
