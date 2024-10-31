@@ -3,6 +3,20 @@ export const validateEmail = (email: string) => {
   return re.test(email);
 };
 
+interface configType {
+  label: string;
+  type: string;
+  placeHolder: string;
+  isRequred: boolean;
+  validationMessage?: string;
+  payloadKey: string;
+  emptyValidation?: string;
+  validationRegex?: RegExp;
+  invalidInput?: string;
+  hasError?: boolean;
+  value: string;
+}
+
 export const validatePassword = (password: string) => {
   // Regular expressions for each condition
   const hasLetter = /[a-zA-Z]/;
@@ -21,6 +35,17 @@ export const validatePassword = (password: string) => {
   }
 
   return true;
+};
+
+export const generatePayloadData = (uiData: Array<configType>) => {
+  var outPutObject: any = {};
+
+  for (var i = 0; i < uiData.length; i++) {
+    const currentItem = uiData[i];
+    const payLoadKey = currentItem["payloadKey"];
+    outPutObject[payLoadKey] = currentItem["value"];
+  }
+  return outPutObject;
 };
 
 export const isValidInput = (
@@ -48,18 +73,6 @@ export const debounce = (fn: Function, delay: number) => {
   };
 };
 
-interface configType {
-  label: string;
-  type: string;
-  placeHolder: string;
-  isRequred: boolean;
-  validationMessage?: string;
-  payloadKey: string;
-  emptyValidation?: string;
-  validationRegex?: RegExp;
-  invalidInput?: string;
-  hasError?: boolean;
-}
 export const findIndexById = (
   array: Array<configType> = [],
   id: string | boolean,
@@ -77,4 +90,5 @@ export const findIndexById = (
   return output;
 };
 
-export const debouncedIsValidInput = debounce(isValidInput, 2000);
+export const debouncedIsValidInputOnType = debounce(isValidInput, 1200);
+export const debouncedIsValidInputOnBlur = debounce(isValidInput, 100);

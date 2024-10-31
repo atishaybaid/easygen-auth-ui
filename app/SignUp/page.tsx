@@ -6,10 +6,13 @@ import { apiEndpoints } from "../apiServices/apiEndPoints";
 import {
   validateEmail,
   validatePassword,
-  debouncedIsValidInput,
+  debouncedIsValidInputOnType,
+  debouncedIsValidInputOnBlur,
   findIndexById,
+  generatePayloadData,
 } from "../Utils";
 import { useRouter } from "next/navigation";
+import CryptoJS from "crypto-js";
 
 interface SignInData {
   [key: string]: string;
@@ -26,6 +29,7 @@ interface configType {
   validationRegex?: RegExp;
   invalidInput?: string;
   hasError?: boolean;
+  value: string;
 }
 
 const signUpBEData: Array<configType> = [
@@ -37,6 +41,9 @@ const signUpBEData: Array<configType> = [
     payloadKey: "user_name",
     emptyValidation: "Please Enter Your Name",
     hasError: false,
+    validationRegex: /^[a-zA-Z0-9_]{3,20}$/,
+    invalidInput: "Name length should be between 3 and 20 characters",
+    value: "",
   },
   {
     label: "Email",
@@ -48,6 +55,7 @@ const signUpBEData: Array<configType> = [
     payloadKey: "user_email",
     validationRegex: /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/,
     hasError: false,
+    value: "",
   },
   {
     label: "Password",
@@ -60,12 +68,12 @@ const signUpBEData: Array<configType> = [
     invalidInput:
       "Must be 8+ chars, with 1 uppercase, 1 lowercase, and 1 special character.",
     hasError: false,
+    value: "",
   },
 ];
 
 export default function SignUp() {
   const router = useRouter();
-  const [formConfig, setFormConfig] = useState<SignInData>({});
   const [rootFaliure, setRootFaliure] = useState("");
   const [signUpConfig, setSignupConfig] = useState(signUpBEData);
 
@@ -81,7 +89,7 @@ use case for validation
 
   */
 
-  const getCurrentItemFromConfig = (payloadKey) => {
+  const getCurrentItemFromConfig = (payloadKey: string) => {
     const configItem = signUpConfig.filter((configItem) => {
       return configItem.payloadKey == payloadKey;
     });
@@ -89,20 +97,23 @@ use case for validation
     return configItem[0];
   };
 
-  const onChangeFormField = (
+  const validateInput = (
     payloadKey: string,
-    event: ChangeEvent<HTMLInputElement>
+    event: ChangeEvent<HTMLInputElement>,
+    eventType: string
   ) => {
-    // const temp = formConfig;
-    // temp[payloadKey as keyof typeof formConfig] = event.target.value;
     const currentConfigItem = getCurrentItemFromConfig(payloadKey);
-
-    debouncedIsValidInput(
+    const validationFunc =
+      eventType == "type"
+        ? debouncedIsValidInputOnType
+        : debouncedIsValidInputOnBlur;
+    validationFunc(
       event.target.value,
       currentConfigItem["validationRegex"],
       (result: boolean) => {
         console.log("result at containsValidationError");
         currentConfigItem["hasError"] = !result;
+        currentConfigItem["value"] = event.target.value;
         console.log(currentConfigItem);
         const currentIndex = findIndexById(
           signUpConfig,
@@ -116,12 +127,37 @@ use case for validation
     );
   };
 
+  const onChangeFormField = (
+    payloadKey: string,
+    event: ChangeEvent<HTMLInputElement>
+  ) => {
+    // const currentConfigItem = getCurrentItemFromConfig(payloadKey);
+    // debouncedIsValidInput(
+    //   event.target.value,
+    //   currentConfigItem["validationRegex"],
+    //   (result: boolean) => {
+    //     console.log("result at containsValidationError");
+    //     currentConfigItem["hasError"] = !result;
+    //     currentConfigItem["value"] = event.target.value;
+    //     console.log(currentConfigItem);
+    //     const currentIndex = findIndexById(
+    //       signUpConfig,
+    //       payloadKey,
+    //       "payloadKey"
+    //     );
+    //     const tempSignupCOnfig = signUpConfig;
+    //     tempSignupCOnfig[currentIndex] = currentConfigItem;
+    //     setSignupConfig([...tempSignupCOnfig]);
+    //   }
+    // );
+    validateInput(payloadKey, event, "type");
+  };
+
   const onBlurFormField = (
     payloadKey: string,
     event: ChangeEvent<HTMLInputElement>
   ) => {
-    if (payloadKey == "user_email") {
-    }
+    validateInput(payloadKey, event, "blur");
   };
 
   const renderSignInComponents = () => {
@@ -136,6 +172,9 @@ use case for validation
             type={type}
             onChange={(event) => {
               onChangeFormField(payloadKey, event);
+            }}
+            onBlur={(event) => {
+              onBlurFormField(payloadKey, event);
             }}
             placeholder={placeHolder}
             className="border-1 border-black"
@@ -156,49 +195,22 @@ use case for validation
     return <div className="text-red-400 mt-8">{rootFaliure}</div>;
   };
 
-  const validatePayloadData = () => {
-    const { user_name, user_email, user_pass } = formConfig;
-    // const indexWithError = findIndexById(signUpConfig, true, "hasError");
-
-    // if (indexWithError > 0) {
-    //   return false;
-    // } else {
-    //   return true;
-    // }
-
-    if (!validateEmail(user_email)) {
-      setRootFaliure("Enter Valid Email");
-      return false;
-    }
-    if (!user_name) {
-      setRootFaliure("Please Enter Valid Name");
-      return false;
-    }
-    if (!user_name || !user_email || !user_pass) {
-      setRootFaliure("Mandatory Fields Missing");
-      return false;
-    } else if (!validatePassword(user_pass)) {
-      setRootFaliure(
-        "Password must containe  one letter,one number and one special character."
-      );
-    } else {
-      return true;
-    }
-  };
-
   const onClickSignUp = async () => {
-    const { user_name, user_email, user_pass } = formConfig;
-    console.log(process.env.NEXT_PUBLIC_API_BASE);
+    console.log("onClickSignUp called");
+    const { user_name, user_email, user_pass } =
+      generatePayloadData(signUpConfig);
+    const secreteKey = process.env.NEXT_PUBLIC_CRYPTO_SECRETE_KEY;
 
-    if (!validatePayloadData()) {
-      return;
-    }
+    var encrypedPass = CryptoJS.AES.encrypt(user_pass, secreteKey);
+    console.log("hassed password");
+    console.log(encrypedPass.toString());
+    console.log(process.env.NEXT_PUBLIC_API_BASE);
 
     const res = await postData(
       {
         user_name: user_name,
         user_email: user_email,
-        user_pass: user_pass,
+        user_pass: encrypedPass.toString(),
       },
       apiEndpoints["SIGN_UP"]
     );
