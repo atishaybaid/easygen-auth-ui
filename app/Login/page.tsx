@@ -2,9 +2,18 @@
 
 import { useState, ChangeEvent } from "react";
 import { postData } from "../apiServices";
-import { validateEmail, validatePassword } from "../Utils";
-import { useRouter } from "next/navigation";
 import { apiEndpoints } from "../apiServices/apiEndPoints";
+import {
+  validateEmail,
+  validatePassword,
+  debouncedIsValidInputOnType,
+  debouncedIsValidInputOnBlur,
+  findIndexById,
+  generatePayloadData,
+} from "../Utils";
+import { useRouter } from "next/navigation";
+import CryptoJS from "crypto-js";
+
 interface SignInData {
   [key: string]: string;
 }
@@ -16,55 +25,136 @@ interface configType {
   isRequred: boolean;
   validationMessage?: string;
   payloadKey: string;
+  emptyValidation?: string;
+  validationRegex?: RegExp;
+  invalidInput?: string;
+  hasError?: boolean;
+  value: string;
 }
-export default function Login() {
-  const router = useRouter();
-  const [formConfig, setFormConfig] = useState<SignInData>({});
-  const [rootFaliure, setRootFaliure] = useState("");
 
-  const signUpConfig: Array<configType> = [
-    {
-      label: "Email",
-      type: "text",
-      placeHolder: "Enter Email",
-      isRequred: true,
-      validationMessage: "Please enter valid email",
-      payloadKey: "user_email",
-    },
-    {
-      label: "Password",
-      type: "password",
-      placeHolder: "Password",
-      isRequred: false,
-      payloadKey: "user_pass",
-    },
-  ];
+const signUpBEData: Array<configType> = [
+  {
+    label: "Email",
+    type: "text",
+    placeHolder: "Enter Email",
+    isRequred: true,
+    validationMessage: "Please enter valid email",
+    invalidInput: "Please enter valid email",
+    payloadKey: "user_email",
+    validationRegex: /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/,
+    hasError: false,
+    value: "",
+  },
+  {
+    label: "Password",
+    type: "password",
+    placeHolder: "Password",
+    payloadKey: "user_pass",
+    isRequred: true,
+    validationMessage: "Please enter valid email",
+    validationRegex: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\W).{8,}$/,
+    invalidInput:
+      "Must be 8+ chars, with 1 uppercase, 1 lowercase, and 1 special character.",
+    hasError: false,
+    value: "",
+  },
+];
+
+export default function Logic() {
+  const router = useRouter();
+  const [rootFaliure, setRootFaliure] = useState("");
+  const [signUpConfig, setSignupConfig] = useState(signUpBEData);
+
+  /*
+use case for validation
+ - when user is typing,if he has typed invalid,and has pasued for sometime show error message
+ - approach
+   dont set the state,while user is typing
+   just validate it with debounce
+
+   just get the data at the time of submit
+
+
+  */
+
+  const getCurrentItemFromConfig = (payloadKey: string) => {
+    const configItem = signUpConfig.filter((configItem) => {
+      return configItem.payloadKey == payloadKey;
+    });
+
+    return configItem[0];
+  };
+
+  const validateInput = (
+    payloadKey: string,
+    event: ChangeEvent<HTMLInputElement>,
+    eventType: string
+  ) => {
+    const currentConfigItem = getCurrentItemFromConfig(payloadKey);
+    const validationFunc =
+      eventType == "type"
+        ? debouncedIsValidInputOnType
+        : debouncedIsValidInputOnBlur;
+    validationFunc(
+      event.target.value,
+      currentConfigItem["validationRegex"],
+      (result: boolean) => {
+        console.log("result at containsValidationError");
+        currentConfigItem["hasError"] = !result;
+        currentConfigItem["value"] = event.target.value;
+        console.log(currentConfigItem);
+        const currentIndex = findIndexById(
+          signUpConfig,
+          payloadKey,
+          "payloadKey"
+        );
+        const tempSignupCOnfig = signUpConfig;
+        tempSignupCOnfig[currentIndex] = currentConfigItem;
+        setSignupConfig([...tempSignupCOnfig]);
+      }
+    );
+  };
 
   const onChangeFormField = (
     payloadKey: string,
     event: ChangeEvent<HTMLInputElement>
   ) => {
-    const temp = formConfig;
-    temp[payloadKey as keyof typeof formConfig] = event.target.value;
+    validateInput(payloadKey, event, "type");
+  };
 
-    setFormConfig({ ...temp });
+  const onBlurFormField = (
+    payloadKey: string,
+    event: ChangeEvent<HTMLInputElement>
+  ) => {
+    validateInput(payloadKey, event, "blur");
   };
 
   const renderSignInComponents = () => {
     return signUpConfig.map((item) => {
-      const { type, placeHolder, payloadKey, label } = item;
+      const { type, placeHolder, payloadKey, label, hasError, invalidInput } =
+        item;
 
       return (
-        <div className="pt-4">
+        <div className="pt-4 flex flex-col">
           {/* <div className="p-2">{label}</div> */}
           <input
             type={type}
             onChange={(event) => {
               onChangeFormField(payloadKey, event);
             }}
+            onBlur={(event) => {
+              onBlurFormField(payloadKey, event);
+            }}
             placeholder={placeHolder}
             className="border-1 border-black"
           />
+          {hasError ? (
+            <label className="error text-red-400  text-sm">
+              {invalidInput}
+            </label>
+          ) : (
+            false
+          )}
         </div>
       );
     });
@@ -74,32 +164,21 @@ export default function Login() {
     return <div className="text-red-400 mt-8">{rootFaliure}</div>;
   };
 
-  const validatePayloadData = () => {
-    const { user_name, user_email, user_pass } = formConfig;
-    if (!validateEmail(user_email)) {
-      setRootFaliure("Enter Valid Email");
-      return false;
-    }
-    if (!user_email || !user_pass) {
-      setRootFaliure("Mandatory Fields Missing");
-      return false;
-    } else {
-      return true;
-    }
-  };
+  const onClickSignUp = async () => {
+    console.log("onClickSignUp called");
+    const { user_name, user_email, user_pass } =
+      generatePayloadData(signUpConfig);
+    const secreteKey = process.env.NEXT_PUBLIC_CRYPTO_SECRETE_KEY;
 
-  const onClickLogin = async () => {
-    const { user_email, user_pass } = formConfig;
+    var encrypedPass = CryptoJS.AES.encrypt(user_pass, secreteKey);
+    console.log("hassed password");
+    console.log(encrypedPass.toString());
     console.log(process.env.NEXT_PUBLIC_API_BASE);
-
-    if (!validatePayloadData()) {
-      return;
-    }
 
     const res = await postData(
       {
         user_email: user_email,
-        user_pass: user_pass,
+        user_pass: encrypedPass.toString(),
       },
       apiEndpoints["LOGIN"]
     );
@@ -119,7 +198,7 @@ export default function Login() {
   const renderSiginBtn = () => {
     return (
       <button
-        onClick={onClickLogin}
+        onClick={onClickSignUp}
         className="border-1 border-black bg-indigo-500 w-48 text-white mt-2"
       >
         Login

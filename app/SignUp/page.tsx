@@ -131,25 +131,6 @@ use case for validation
     payloadKey: string,
     event: ChangeEvent<HTMLInputElement>
   ) => {
-    // const currentConfigItem = getCurrentItemFromConfig(payloadKey);
-    // debouncedIsValidInput(
-    //   event.target.value,
-    //   currentConfigItem["validationRegex"],
-    //   (result: boolean) => {
-    //     console.log("result at containsValidationError");
-    //     currentConfigItem["hasError"] = !result;
-    //     currentConfigItem["value"] = event.target.value;
-    //     console.log(currentConfigItem);
-    //     const currentIndex = findIndexById(
-    //       signUpConfig,
-    //       payloadKey,
-    //       "payloadKey"
-    //     );
-    //     const tempSignupCOnfig = signUpConfig;
-    //     tempSignupCOnfig[currentIndex] = currentConfigItem;
-    //     setSignupConfig([...tempSignupCOnfig]);
-    //   }
-    // );
     validateInput(payloadKey, event, "type");
   };
 
